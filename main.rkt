@@ -59,7 +59,7 @@
 
 ;;wrapper
 ;;-----
-(define (make-packed-procedure func)
+(define (make-packing-procedure func)
   (make-keyword-procedure (lambda (kws vals . rest) (func (kws-and-vals->table kws vals) rest))))
 ;;-----
 
@@ -79,6 +79,6 @@
            (apply-packed-arguments
             (lambda (#:date date) (displayln (date->string date)))
             (subtable tbl '(#:date)) null))))))
-  (define wrapped-function (make-packed-procedure orignal-function))
+  (define wrapped-function (make-packing-procedure orignal-function))
   (check-true (string=? (time (format "~a: ~a\n~a\n" "Antigen-1" "Hello!" (date->string (current-date))))
                         (time (wrapped-function #:name "Antigen-1" #:date (current-date) "Hello!")))))
