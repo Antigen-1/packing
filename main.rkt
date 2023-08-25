@@ -25,7 +25,7 @@
 (provide (contract-out (kws-and-vals->table (-> (listof keyword?) list? any))
                        (subtable (-> kwargs-table/c (listof keyword?) any))
                        (apply-packed-arguments (-> procedure? kwargs-table/c list? any))
-                       (make-packed-procedure (-> (-> any/c any/c any) any))))
+                       (make-packing-procedure (-> (-> any/c any/c any) any))))
 
 ;;association lists
 ;;-----
