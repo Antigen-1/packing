@@ -80,5 +80,8 @@
             (lambda (#:date date) (displayln (date->string date)))
             (subtable tbl '(#:date)) null))))))
   (define wrapped-function (make-packing-procedure orignal-function))
-  (check-true (string=? (time (format "~a: ~a\n~a\n" "Antigen-1" "Hello!" (date->string (current-date))))
-                        (time (wrapped-function #:name "Antigen-1" #:date (current-date) "Hello!")))))
+
+  (define date (current-date))
+
+  (check-true (string=? (format "~a: ~a\n~a\n" "Antigen-1" "Hello!" (date->string date))
+                        (wrapped-function #:name "Antigen-1" #:date date "Hello!"))))
