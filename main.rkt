@@ -1,8 +1,4 @@
 #lang racket/base
-
-(module+ test
-  (require rackunit))
-
 ;; Notice
 ;; To install (from within the package directory):
 ;;   $ raco pkg install
@@ -25,26 +21,64 @@
 
 ;; Code here
 
+(require racket/contract)
+(provide (contract-out (kws-and-vals->table (-> (listof keyword?) list? any))
+                       (subtable (-> kwargs-table/c (listof keyword?) any))
+                       (apply-packed-arguments (-> procedure? kwargs-table/c list? any))
+                       (make-packed-procedure (-> (-> any/c any/c any) any))))
 
+;;association lists
+;;-----
+(define (cars->assoc-list cars proc)
+  (map (lambda (c) (cons c (proc c))) cars))
+(define (cars-and-cdrs->assoc-list cars cdrs)
+  (map cons cars cdrs))
+(define (assoc-list->cars-and-cdrs lst)
+  (for/fold ((cars null) (cdrs null))
+            ((pair (in-list lst)))
+    (values (cons (car pair) cars) (cons (cdr pair) cdrs))))
+;;-----
 
-(module+ test
+;;by-keyword arguments and immutable hash tables
+;;-----
+(define kwargs-table/c (hash/c keyword? any/c #:immutable #t))
+
+(define (make-table pairs)
+  (make-immutable-hasheq pairs))
+(define (retrieve-keyword-argument table kw)
+  (hash-ref table kw))
+
+(define (kws-and-vals->table kws vals) (make-table (cars-and-cdrs->assoc-list kws vals)))
+(define (subtable table kws)
+  (make-table (cars->assoc-list kws (lambda (kw) (retrieve-keyword-argument table kw)))))
+(define (apply-packed-arguments func table rest)
+  (let ((sorted (sort (hash->list table) keyword<? #:key car)))
+    (call-with-values (lambda () (assoc-list->cars-and-cdrs sorted))
+                      (lambda (kws vals) (keyword-apply func kws vals rest)))))
+;;-----
+
+;;wrapper
+;;-----
+(define (make-packed-procedure func)
+  (make-keyword-procedure (lambda (kws vals . rest) (func (kws-and-vals->table kws vals) rest))))
+;;-----
+
+(module* test racket/base
   ;; Any code in this `test` submodule runs when this file is run using DrRacket
   ;; or with `raco test`. The code here does not run when this file is
   ;; required by another module.
 
-  (check-equal? (+ 2 2) 4))
+  (require rackunit racket/match racket/date racket/port (submod ".."))
 
-(module+ main
-  ;; (Optional) main submodule. Put code here if you need it to be executed when
-  ;; this file is run using DrRacket or the `racket` executable.  The code here
-  ;; does not run when this file is required by another module. Documentation:
-  ;; http://docs.racket-lang.org/guide/Module_Syntax.html#%28part._main-and-test%29
-
-  (require racket/cmdline)
-  (define who (box "world"))
-  (command-line
-    #:program "my-program"
-    #:once-each
-    [("-n" "--name") name "Who to say hello to" (set-box! who name)]
-    #:args ()
-    (printf "hello ~a~n" (unbox who))))
+  (define (orignal-function tbl lst)
+    (with-output-to-string
+      (lambda ()
+        (match* (tbl lst)
+          (((hash-table ('#:name name) ('#:date date)) (list greeting))
+           (displayln (format "~a: ~a" name greeting))
+           (apply-packed-arguments
+            (lambda (#:date date) (displayln (date->string date)))
+            (subtable tbl '(#:date)) null))))))
+  (define wrapped-function (make-packed-procedure orignal-function))
+  (check-true (string=? (time (format "~a: ~a\n~a\n" "Antigen-1" "Hello!" (date->string (current-date))))
+                        (time (wrapped-function #:name "Antigen-1" #:date (current-date) "Hello!")))))

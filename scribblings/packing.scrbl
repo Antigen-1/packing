@@ -7,4 +7,4 @@
 
 @defmodule[packing]
 
-Package Description Here
+Packing and unpacking arguments.
